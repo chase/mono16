@@ -1,4 +1,4 @@
-box: chase/fontforge@0.2.0
+box: colman/fontforge-wercker
 build:
     steps:
         - script:
