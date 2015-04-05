@@ -11,7 +11,15 @@ fonts = ['Mono16Loose.sfdir', 'Mono16Normal.sfdir', 'Mono16Tight.sfdir']
 ## Options to generate
 options = {
     # Standard asterisk
-    'sa': { 'swap': [ "asterisk", "asterisk.alt" ] }
+    'sa': { 'swap': [ "asterisk", "asterisk.alt" ] },
+    # Slashed zero
+    'sz': { 'swap': [ "zero", "zero.slashed" ] },
+    # Undotted zero
+    'uz': { 'swap': [ "zero", "zero.dotless" ] },
+    # Alternative L
+    'al': { 'swap': [ "l", "l.alt" ] },
+    # Alternative 1
+    'a1': { 'swap': [ "one", "one.alt" ] }
 }
 
 
