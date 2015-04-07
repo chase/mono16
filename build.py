@@ -54,7 +54,7 @@ def Swap(fnt, glyph1, glyph2):
     fnt.clear()
 
 # Make sure you add the equivalent methods to the dictionary!
-ops = {
+opers = {
     'swap': Swap
 }
 
@@ -68,35 +68,35 @@ except OSError:
     pass
 
 # Expands any tuple options into exclusive combinations
+# TODO Also splits a tuple option's operation tuple
 def expand_options(options):
-    def istuple(option):
-        return type(option) is tuple
+    options = list(options)
 
-    # Nontuple options
-    nontuples = list(ifilterfalse(istuple, options))
+    # Cache nontuple options
+    nontuples = filter(lambda o: type(o) is not tuple, options)
+
     def append(cmb):
-        return chain(nontuples, cmb)
+        return nontuples + list(cmb)
 
     # Get tuple combinations using the cartesian product of each tuple
-    cmbs = product(*ifilter(istuple, options))
+    cmbs = product(*ifilter(lambda o: type(o) is tuple, options))
     # For each combination, append it to the end of the nontuples
     return imap(append, cmbs)
 
-def build(font, options):
+def build(font, opts):
     # Fork the original font
     fnt = fontforge.open(join(source, font))
 
     # Get the base name for the font
     name = join('release', splitext(basename(font))[0])
 
-    for option in options:
+    for opt in opts:
         # Append this option to the font name
-        name += '-' + option
+        name += '-' + str(opt)
 
         # Run all the operations for this option
-        option = options[opt_key]
-        for op in option:
-            ops[op](fnt, *option[op])
+        #for oper in options[opt]:
+            #opers[oper](fnt, *oper[opt])
 
     # Output the file and cleanup
     fnt.generate(name + ".ttf")
@@ -115,9 +115,8 @@ bitmap_max = 1 << opt_len
 for i in xrange(bitmap_max):
     # For each font listed
     for font in fonts:
-        bitmap = imap(lambda n: i >> n & 1, xrange(opt_len))
+        bitmap = map(lambda n: i >> n & 1, xrange(opt_len))
         # Build the combinations based on the current bitmap
         cmbs = list(expand_options(compress(opt_keys, bitmap)))
-        print(cmbs)
         for cmb in cmbs:
-            build(font, cmbs)
+            build(font, cmb)
