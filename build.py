@@ -1,10 +1,14 @@
 #!/usr/bin/env python2.7
 
 import fontforge
+from itertools import chain, compress, ifilter, ifilterfalse, imap, product
 from os import mkdir
 from os.path import basename, splitext, join
 
 # Configuration
+## Source directory
+source = "Source"
+
 ## Fonts to modify
 fonts = ['Mono16Loose.sfdir', 'Mono16Normal.sfdir', 'Mono16Tight.sfdir']
 
@@ -12,10 +16,11 @@ fonts = ['Mono16Loose.sfdir', 'Mono16Normal.sfdir', 'Mono16Tight.sfdir']
 options = {
     # Standard asterisk
     'sa': { 'swap': [ "asterisk", "asterisk.alt" ] },
-    # Slashed zero
-    'sz': { 'swap': [ "zero", "zero.slashed" ] },
-    # Undotted zero
-    'uz': { 'swap': [ "zero", "zero.dotless" ] },
+    # Slashed zero / Undotted zero
+    ('sz', 'uz'): (
+        { 'swap': [ "zero", "zero.slashed" ] },
+        { 'swap': [ "zero", "zero.dotless" ] }
+    ),
     # Alternative L
     'al': { 'swap': [ "l", "l.alt" ] },
     # Alternative 1
@@ -23,7 +28,6 @@ options = {
 }
 
 
-# WARNING: Here be dragons!
 # Operations
 # Swaps the places of two glyphs using the DEL char as swap space
 def Swap(fnt, glyph1, glyph2):
@@ -49,17 +53,12 @@ def Swap(fnt, glyph1, glyph2):
     fnt.selection.select(127)
     fnt.clear()
 
-# Be sure to add the equivalent methods to the dictionary
+# Make sure you add the equivalent methods to the dictionary!
 ops = {
     'swap': Swap
 }
 
-# Each option is a binary choice, so we use an int as a quick bitmap.
-# To iterate over every possible combination, all we have to do is increment
-# up to the maximum value 2^(#options)+1 (including no options at all.)
-bitmap_max = 2**(len(options)-1)+1
-
-opt_keys = options.keys()
+# WARNING: Here be dragons!
 
 # Ensure we have a font release directory
 try:
@@ -68,29 +67,57 @@ except OSError:
     # Already exists, carry on
     pass
 
-for i in range(bitmap_max):
+# Expands any tuple options into exclusive combinations
+def expand_options(options):
+    def istuple(option):
+        return type(option) is tuple
+
+    # Nontuple options
+    nontuples = list(ifilterfalse(istuple, options))
+    def append(cmb):
+        return chain(nontuples, cmb)
+
+    # Get tuple combinations using the cartesian product of each tuple
+    cmbs = product(*ifilter(istuple, options))
+    # For each combination, append it to the end of the nontuples
+    return imap(append, cmbs)
+
+def build(font, options):
+    # Fork the original font
+    fnt = fontforge.open(join(source, font))
+
+    # Get the base name for the font
+    name = join('release', splitext(basename(font))[0])
+
+    for option in options:
+        # Append this option to the font name
+        name += '-' + option
+
+        # Run all the operations for this option
+        option = options[opt_key]
+        for op in option:
+            ops[op](fnt, *option[op])
+
+    # Output the file and cleanup
+    fnt.generate(name + ".ttf")
+    fnt.close()
+
+# Get the names/tuples of all the options in alphabetical order
+opt_keys = options.keys()
+opt_len = len(opt_keys)
+
+# Each option is a binary choice, so we use an int as a quick bitmap.
+# To iterate over every possible combination, all we have to do is increment
+# up to the maximum value 2^(#options)
+bitmap_max = 1 << opt_len
+
+# Iterate over all possible combinations
+for i in xrange(bitmap_max):
+    # For each font listed
     for font in fonts:
-        # Get the base name for the font
-        name = join('release', splitext(basename(font))[0])
-
-        # Fork the original font
-        fnt = fontforge.open(join("Source", font))
-
-        # Iterate through the options
-        for n in range(len(options)):
-            # Skip if the option isn't set
-            if i >> n & 1 == 0:
-                continue
-
-            # Append this option to the font name
-            opt_key = opt_keys[n]
-            name += '-' + opt_key
-
-            # Run all the operations for this option
-            option = options[opt_key]
-            for op in option:
-                ops[op](fnt, *option[op])
-
-        # Output the file and cleanup
-        fnt.generate(name + ".ttf")
-        fnt.close()
+        bitmap = imap(lambda n: i >> n & 1, xrange(opt_len))
+        # Build the combinations based on the current bitmap
+        cmbs = list(expand_options(compress(opt_keys, bitmap)))
+        print(cmbs)
+        for cmb in cmbs:
+            build(font, cmbs)
