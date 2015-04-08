@@ -1,4 +1,5 @@
 #!/usr/bin/env python2.7
+# vim: sts=4 sw=4 ts=4 et
 
 import fontforge
 from itertools import chain, compress, ifilter, ifilterfalse, imap, product
@@ -10,55 +11,100 @@ from os.path import basename, splitext, join
 source = "Source"
 
 ## Fonts to modify
-fonts = ['Mono16Loose.sfdir', 'Mono16Normal.sfdir', 'Mono16Tight.sfdir']
+fonts = ['Mono16Normal.sfdir']
 
 ## Options to generate
-options = {
-    # Standard asterisk
-    'sa': { 'swap': [ "asterisk", "asterisk.alt" ] },
-    # Slashed zero / Undotted zero
-    ('sz', 'uz'): (
-        { 'swap': [ "zero", "zero.slashed" ] },
-        { 'swap': [ "zero", "zero.dotless" ] }
-    ),
-    # Alternative L
-    'al': { 'swap': [ "l", "l.alt" ] },
-    # Alternative 1
-    'a1': { 'swap': [ "one", "one.alt" ] }
-}
+conflicting(
+    style('Loose', Bearing(right=128)),
+    style('HalfLoose', Bearing(right=64)),
+    style('HalfTight', Bearing(left=-64)),
+    style('Tight', Bearing(left=-128)),
+)
 
+option('al', 'Alternative l', Swap("l", "l.alt")),
+option('a1', 'Alternative 1', Swap("one", "one.alt")),
+option('sa', 'Standard asterisk', Swap("asterisk", "asterisk.alt"))
+
+conflicting(
+    option('sz', 'Slashed zero', Swap("zero", "zero.slashed")),
+    option('uz', 'Undotted zero', Swap("zero", "zero.dotless")),
+)
+
+# TODO: Implement conflicting option processing
+def conflicting(*args):
+    pass
+
+def style(name, does):
+    if type(does) is not list:
+        does = list(does)
+    option(name, name, [Variant(name)] + does)
+
+    return name
+
+def option(abrv, name, does):
+    operations = option.__dict__.setdefault("operations", {})
+    option.operations[abrv] = does
+
+    return abrv
 
 # Operations
-# Swaps the places of two glyphs using the DEL char as swap space
-def Swap(fnt, glyph1, glyph2):
-    # G1 -> SWP
-    fnt.selection.select(glyph1)
-    fnt.copy()
-    fnt.selection.select(127) # DEL
-    fnt.paste()
+## NOTE:
+## All operations return a closure with the 1st argument being a fontforge.font
 
-    # G2 -> G1
-    fnt.selection.select(glyph2)
-    fnt.copy()
-    fnt.selection.select(glyph1)
-    fnt.paste()
+## Adjusts the left and/or right bearings of all glyphs
+def Bearing(left=0, right=0):
+    def op(fnt):
+        fnt.genericGlyphChange(
+                hCounterType="nonUniform",
+                hCounterScale=1.0,
+                lsbScale=1.0,
+                rsbScale=1.0,
+                lsbAdd=left,
+                rsbAdd=right)
+    return op
 
-    # SWP -> G1
-    fnt.selection.select(127)
-    fnt.copy()
-    fnt.selection.select(glyph2) # DEL
-    fnt.paste()
+## Swaps the places of two glyphs using the DEL char as swap space
+def Swap(glyph1, glyph2):
+    def op(fnt):
+        # G1 -> SWP
+        fnt.selection.select(glyph1)
+        fnt.copy()
+        fnt.selection.select(127) # DEL
+        fnt.paste()
 
-    # Clear SWP
-    fnt.selection.select(127)
-    fnt.clear()
+        # G2 -> G1
+        fnt.selection.select(glyph2)
+        fnt.copy()
+        fnt.selection.select(glyph1)
+        fnt.paste()
 
-# Make sure you add the equivalent methods to the dictionary!
-opers = {
-    'swap': Swap
-}
+        # SWP -> G1
+        fnt.selection.select(127) # DEL
+        fnt.copy()
+        fnt.selection.select(glyph2)
+        fnt.paste()
 
-# WARNING: Here be dragons!
+        # Clear SWP
+        fnt.selection.select(127) # DEL
+        fnt.clear()
+    return op
+
+## Changes the subfamily/variation of the font
+def Variation(name):
+    def op(fnt):
+        basename = f.fontname.split('-')[0]
+        fontname = [basename] + name.split()
+        f.fontname = '-'.join(fontname)
+        f.fullname = ' '.join(fontname)
+    return op
+
+#############################
+# WARNING: Here be dragons! #
+#############################
+
+# TODO: Rewrite looped-build to streamlined-build
+print("Sorry, not quite done yet")
+exit(1)
 
 # Ensure we have a font release directory
 try:
@@ -67,21 +113,23 @@ except OSError:
     # Already exists, carry on
     pass
 
-# Expands any tuple options into exclusive combinations
-# TODO Also splits a tuple option's operation tuple
-def expand_options(options):
-    options = list(options)
+# Expand any tuple options into exclusive combinations
+## Split options into tuples and non-tuples
+## Flatten the operation map
+tuples = []
+nontuples = []
+op_map = {}
+for option in options:
+    if type(option) is tuple:
+        tuples.append(option)
+    else:
+        nontuples.append(option)
 
-    # Cache nontuple options
-    nontuples = filter(lambda o: type(o) is not tuple, options)
+## Get tuple combinations using the cartesian product of each tuple
+cmbs = product(*nontuples)
 
-    def append(cmb):
-        return nontuples + list(cmb)
-
-    # Get tuple combinations using the cartesian product of each tuple
-    cmbs = product(*ifilter(lambda o: type(o) is tuple, options))
-    # For each combination, append it to the end of the nontuples
-    return imap(append, cmbs)
+## For each combination, append it to the end of the nontuples
+map(lambda cmb: nontuples + list(cmb) , cmbs)
 
 def build(font, opts):
     # Fork the original font
