@@ -27,15 +27,24 @@ def option(abrv, name, does):
 # Initialize the operations map and count
 option.operations = {}
 option.count = 0
-option.unconflicting = set()
+option.unconflicting = []
 
 def conflicting(*args):
-    conflicting.optsets = [ [arg] + optset for optset in optsets for arg in args ]
+    optsets = conflicting.optsets
 
-    # Only one of the conflicting options should be counted
-    option.count -= len(args) - 1
-    # Deconflict
-    option.unconflicting.difference_update(set(args))
+    # Only one of the option should be counted
+    option.count += 1
+
+    conflicting.optsets = []
+
+    # Get all permutations for conflicting options
+    for arg in args:
+        # Deconflict
+        option.count -= 1
+        option.unconflicting.remove(arg)
+
+        for optset in optsets:
+            conflicting.optsets += [[arg]+optset]
 
 # Initialize the conflicting options set list
 conflicting.optsets = [[]]
