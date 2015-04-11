@@ -11,7 +11,7 @@ source = "Source"
 ## Fonts to modify
 fonts = ['Mono16Normal.sfdir']
 
-## Options to generate
+# Options to generate
 conflicting(
     style('Loose', Bearing(right=128)),
     style('HalfLoose', Bearing(right=64)),
@@ -36,3 +36,9 @@ except OSError:
     pass
 
 # TODO: BUILD!
+# DEBUGGING:
+def walker(x):
+    print(x)
+walk(walker)
+
+print(option.permutations)

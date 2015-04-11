@@ -1,7 +1,7 @@
 # vim: sts=4 sw=4 ts=4 et
 
 import fontforge
-from itertools import chain, compress, ifilter, ifilterfalse, imap
+from itertools import compress
 from os.path import basename, splitext, join
 
 # Builder
@@ -20,52 +20,50 @@ def option(abrv, name, does):
     option.operations[abrv] = does
 
     option.count += 1
-    option.unconflicting.add(abrv)
+    for permutation in option.permutations:
+        permutation.append(abrv)
 
     return abrv
 
-# Initialize the operations map and count
+# Initialize the operations map, option count, and permutations
 option.operations = {}
 option.count = 0
-option.unconflicting = []
+option.permutations = [[]]
 
 def conflicting(*args):
-    optsets = conflicting.optsets
+    permutations = option.permutations
+    # Deconflict
+    # Assumes last #args options in each permutation are conflicting options
+    for arg in args:
+        for p in permutations:
+            p.pop()
 
-    # Only one of the option should be counted
-    option.count += 1
-
-    conflicting.optsets = []
+    # Only one of the options should be counted
+    option.count -= len(args) - 1
 
     # Get all permutations for conflicting options
-    for arg in args:
-        # Deconflict
-        option.count -= 1
-        option.unconflicting.remove(arg)
-
-        for optset in optsets:
-            conflicting.optsets += [[arg]+optset]
-
-# Initialize the conflicting options set list
-conflicting.optsets = [[]]
+    option.permutations = [ p + [arg] for p in permutations for arg in args ]
 
 # Walk through all the options
 def walk(walker):
     # Each option is a binary choice, so we use an int as a quick bitmap.
-    # To iterate over every possible combination, all we have to do is increment
+    # To iterate over every possible permutation, all we have to do is increment
     # up to the maximum value 2^(#options)
     bitmap_max = 1 << option.count
 
-    # Iterate over all possible combinations
+    # Iterate over all possible permutations
     for i in xrange(bitmap_max):
-        # For each font listed
-        for font in fonts:
-            bitmap = imap(lambda n: i >> n & 1, xrange(option_count))
-## TODO: Acutally walk the options
-            # Build the combinations based on the current bitmap
-            cmbs = list(expand_options(compress(opt_keys, bitmap)))
-            for cmb in cmbs:
-                walker(cmb)
+        # Map the iteration's permutations using a bitmap
+        bitmap = map(lambda n: i >> n & 1, xrange(option.count))
+        # NOTE: This does not effectively handle de-duplication.
+        # TODO: Tuples? Revert to expand_options and modify?
+        last = None
+        for p in option.permutations:
+            current = list(compress(p, bitmap))
+            if current == last:
+                break
+            last = current
+            walker(current)
 
 def build(outdir, font):
     # Fork the original font
