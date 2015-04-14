@@ -1,3 +1,5 @@
+# Copyright 2015 Chase Colman (chase@colman.io)
+# LICENSE: MIT
 # vim: sts=4 sw=4 ts=4 et
 
 import fontforge
