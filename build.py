@@ -40,5 +40,3 @@ except OSError:
 def walker(x):
     print(x)
 walk(walker)
-
-print(option.permutations)
