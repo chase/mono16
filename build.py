@@ -8,6 +8,9 @@ from fontbuilder import *
 ## Source directory
 source = "Source"
 
+## Output directory
+output = "_release"
+
 ## Fonts to modify
 fonts = ['Mono16Normal.sfdir']
 
@@ -28,15 +31,5 @@ conflicting(
     option('uz', 'Undotted zero', Swap("zero", "zero.dotless")),
 )
 
-# Ensure we have a font release directory
-try:
-    mkdir('release')
-except OSError:
-    # Already exists, carry on
-    pass
-
-# TODO: BUILD!
-# DEBUGGING:
-def walker(x):
-    print(x)
-walk(walker)
+for font in fonts:
+    build(output, source, font)

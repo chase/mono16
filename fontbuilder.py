@@ -4,19 +4,20 @@
 
 import fontforge
 from itertools import compress
+from os import mkdir
 from os.path import basename, splitext, join
 
 # Builder
 def style(name, does):
-    try:
-        does = list(does)
-    except TypeError:
+    if not isinstance(does, list):
         does = [does]
     option(name, name, [Variation(name)] + does)
 
     return name
 
 def option(abrv, name, does):
+    if not isinstance(does, list):
+        does = [does]
     option.operations[abrv] = does
     option.abrvs.append(abrv)
     option.names[abrv] = name
@@ -33,7 +34,7 @@ def conflicting(*abrvs):
     # Assumes last #abrvs abbreviations are conflicting options
     option.abrvs = option.abrvs[:-len(abrvs)] + [tuple(abrvs)]
 
-def expand_options(bitmap):
+def _expand_options(bitmap):
     # Apply the bitmap to the options
     opts = compress(option.abrvs, bitmap)
 
@@ -47,8 +48,8 @@ def expand_options(bitmap):
 
     return expanded
 
-def walk(walker):
-    """Walk through all the options and run walker(options)"""
+def permutations():
+    """Yields all possible permutations from the options list"""
     count = len(option.abrvs)
 
     # Each option is a binary choice, so we use an int as a quick bitmap.
@@ -60,31 +61,48 @@ def walk(walker):
     for i in xrange(bitmap_max):
         # Map the iteration's permutations using a bitmap
         bitmap = [i >> n & 1 for n in xrange(count)]
-        for opts in expand_options(bitmap):
-            walker(opts)
+        for opts in _expand_options(bitmap):
+            yield opts
 
-def build(outdir, font):
-    # Fork the original font
-    fnt = fontforge.open(join(source, font))
+def build(dstdir, srcdir, font):
+    # Ensure that the destination directory exists
+    try:
+        mkdir(dstdir)
+    except OSError:
+        pass
+
+    # Open the original font
+    fnt = fontforge.open(join(srcdir, font))
 
     # Get the base name for the font
-    name = join(outdir, splitext(basename(font))[0])
+    name = join(dstdir, splitext(basename(font))[0])
 
-    for opt in opts:
-        # Append this option to the font name
-        name += '-' + str(opt)
+    for opts in permutations():
+        # Copy the base name
+        _name = name
+        for opt in opts:
+            # Append this option to the font name
+            _name += '-' + str(opt)
+            # Run all the operations for this option
+            for oper in option.operations[opt]:
+                oper(fnt)
 
-        # Run all the operations for this option
-        for oper in options[opt]:
-            opers[oper](fnt, *oper[opt])
+        # Output the file and cleanup
+        fnt.generate(_name + ".ttf")
+        fnt.revert()
 
-    # Output the file and cleanup
-    fnt.generate(name + ".ttf")
+    # Close the original font
     fnt.close()
 
 # Operations
 ## NOTE:
 ## All operations return a closure with the 1st argument being a fontforge.font
+def Line(ascent, descent):
+    """Sets the ascent and/or descent of the font's line"""
+    def op(fnt):
+        fnt.ascent = ascent
+        fnt.descent = descent
+    return op
 
 def Bearing(left=0, right=0):
     """Adjusts the left and/or right bearings of all glyphs"""
