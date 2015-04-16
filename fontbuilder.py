@@ -71,13 +71,13 @@ def build(dstdir, srcdir, font):
     except OSError:
         pass
 
-    # Open the original font
-    fnt = fontforge.open(join(srcdir, font))
-
     # Get the base name for the font
     name = join(dstdir, splitext(basename(font))[0])
 
     for opts in permutations():
+        # Open the original font
+        fnt = fontforge.open(join(srcdir, font))
+
         # Copy the base name
         _name = name
         for opt in opts:
@@ -89,37 +89,33 @@ def build(dstdir, srcdir, font):
 
         # Output the file and cleanup
         fnt.generate(_name + ".ttf")
-        fnt.revert()
-
-    # Close the original font
-    fnt.close()
+        fnt.close()
 
 # Operations
 ## NOTE:
 ## All operations return a closure with the 1st argument being a fontforge.font
 def Line(ascent, descent):
     """Sets the ascent and/or descent of the font's line"""
-    def op(fnt):
+    def line_op(fnt):
         fnt.ascent = ascent
         fnt.descent = descent
-    return op
+    return line_op
 
 def Bearing(left=0, right=0):
     """Adjusts the left and/or right bearings of all glyphs"""
-    def op(fnt):
-        fnt.genericGlyphChange(
-            hCounterType="nonUniform",
-            hCounterScale=1.0,
-            lsbScale=1.0,
-            rsbScale=1.0,
-            lsbAdd=left,
-            rsbAdd=right)
-    return op
+    def bearing_op(fnt):
+        for glyph in fnt.glyphs():
+            if left != 0:
+                glyph.left_side_bearing += left
+            if right != 0:
+                glyph.right_side_bearing += right
+    return bearing_op
 
 DEL = 127
 def Swap(glyph1, glyph2):
     """Swaps the places of two glyphs using the DEL char as swap space"""
-    def op(fnt):
+    def swap_op(fnt):
+        # TODO: Make this this quicker, each call takes half a second
         # G1 -> SWP
         fnt.selection.select(glyph1)
         fnt.copy()
@@ -141,13 +137,13 @@ def Swap(glyph1, glyph2):
         # Clear SWP
         fnt.selection.select(DEL)
         fnt.clear()
-    return op
+    return swap_op
 
 def Variation(name):
     """Changes the subfamily/variation of the font"""
-    def op(fnt):
+    def variation_op(fnt):
         base = fnt.fontname.split('-')[0]
         fontname = [base] + name.split()
         fnt.fontname = '-'.join(fontname)
         fnt.fullname = ' '.join(fontname)
-    return op
+    return variation_op
