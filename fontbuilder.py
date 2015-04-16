@@ -71,24 +71,23 @@ def build(dstdir, srcdir, font):
     except OSError:
         pass
 
-    # Get the base name for the font
-    name = join(dstdir, splitext(basename(font))[0])
-
     for opts in permutations():
         # Open the original font
         fnt = fontforge.open(join(srcdir, font))
 
-        # Copy the base name
-        _name = name
+        # Get the base name for the font
+        base = fnt.fontname.split('-')[0]
+        name = join(dstdir, base)
+
         for opt in opts:
             # Append this option to the font name
-            _name += '-' + str(opt)
+            name += '-' + str(opt)
             # Run all the operations for this option
             for oper in option.operations[opt]:
                 oper(fnt)
 
         # Output the file and cleanup
-        fnt.generate(_name + ".ttf")
+        fnt.generate(name + ".ttf")
         fnt.close()
 
 # Operations
