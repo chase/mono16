@@ -96,8 +96,9 @@ def build(dstdir, srcdir, font):
 def Line(ascent, descent):
     """Sets the ascent and/or descent of the font's line"""
     def line_op(fnt):
-        fnt.ascent = ascent
-        fnt.descent = descent
+        fnt.os2_winascent = fnt.os2_typoascent = fnt.hhea_ascent = ascent
+        fnt.os2_windescent = descent
+        fnt.os2_typodescent = fnt.hhea_descent = -descent
     return line_op
 
 def Bearing(left=0, right=0):

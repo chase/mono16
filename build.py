@@ -22,9 +22,15 @@ conflicting(
     style('Tight', Bearing(left=-128)),
 )
 
-option('al', 'Alternative l', Swap("l", "l.alt")),
-option('a1', 'Alternative 1', Swap("one", "one.alt")),
+option('al', 'Alternative l', Swap("l", "l.alt"))
+option('a1', 'Alternative 1', Swap("one", "one.alt"))
 option('sa', 'Standard asterisk', Swap("asterisk", "asterisk.alt"))
+
+conflicting(
+    option('17px', 'Deci', Line(ascent=1664, descent=512)),
+    option('19px', 'Deca', Line(1792, 512)),
+    option('20px', 'Hecto', Line(1792, 640)),
+)
 
 conflicting(
     option('sz', 'Slashed zero', Swap("zero", "zero.slashed")),
