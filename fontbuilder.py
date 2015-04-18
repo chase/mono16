@@ -115,28 +115,10 @@ DEL = 127
 def Swap(glyph1, glyph2):
     """Swaps the places of two glyphs using the DEL char as swap space"""
     def swap_op(fnt):
-        # TODO: Make this this quicker, each call takes half a second
-        # G1 -> SWP
-        fnt.selection.select(glyph1)
-        fnt.copy()
-        fnt.selection.select(DEL)
-        fnt.paste()
-
-        # G2 -> G1
-        fnt.selection.select(glyph2)
-        fnt.copy()
-        fnt.selection.select(glyph1)
-        fnt.paste()
-
-        # SWP -> G1
-        fnt.selection.select(DEL)
-        fnt.copy()
-        fnt.selection.select(glyph2)
-        fnt.paste()
-
-        # Clear SWP
-        fnt.selection.select(DEL)
-        fnt.clear()
+        # Unlike selections, glyph layer data is returned as a copy
+        swp = fnt[glyph1].foreground
+        fnt[glyph1].foreground = fnt[glyph2].foreground
+        fnt[glyph2].foreground = swp
     return swap_op
 
 def Variation(name):
